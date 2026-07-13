@@ -1,0 +1,16 @@
+.git
+.github
+.venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+.ipynb_checkpoints
+data
+.env
+CLAUDE.md
+.remember
+notebooks
+tests
+*.ipynb
+.DS_Store
