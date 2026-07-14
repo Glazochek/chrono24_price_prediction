@@ -1,4 +1,4 @@
-.PHONY: help setup lint format test data docker clean
+.PHONY: help setup lint format test data train docker clean
 .DEFAULT_GOAL := help
 
 help: ## Show the available commands
@@ -21,6 +21,9 @@ test: ## Run the test suite
 
 data: ## Download the dataset and print its shape (needs Kaggle creds in .env)
 	uv run python -c "from chrono24 import load_watches; print(load_watches().shape)"
+
+train: ## Run the full pipeline: clean, remove outliers, train, save model + plots
+	uv run python -m chrono24
 
 docker: ## Build the container image
 	docker build -t chrono24 .
