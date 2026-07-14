@@ -52,7 +52,7 @@ Requires [uv](https://docs.astral.sh/uv/) (`curl -LsSf https://astral.sh/uv/inst
 
 ```bash
 uv sync                        # create the .venv and install from uv.lock
-uv run pre-commit install      # enable the commit hooks (ruff + nbstripout)
+uv run pre-commit install      # enable the ruff commit hooks
 cp .env.example .env           # add your Kaggle credentials for downloads
 make data                      # download the dataset and print its shape
 ```
@@ -71,12 +71,6 @@ Kaggle credentials (`KAGGLE_USERNAME` / `KAGGLE_KEY`) go in `.env` — see `.env
 | `make data`   | Download the dataset and print its shape |
 | `make docker` | Build the container image |
 | `make clean`  | Remove caches |
-
-## Notebook hygiene
-
-`nbstripout` runs as a pre-commit hook and strips notebook outputs before they're
-committed, so diffs stay readable and the repo stays small. Enable it once with
-`uv run pre-commit install`.
 
 ## Docker
 
