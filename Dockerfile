@@ -1,5 +1,10 @@
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 
+# OpenMP runtime, needed by LightGBM
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # install deps before copying code so this layer stays cached
@@ -11,4 +16,4 @@ RUN uv sync --locked --no-dev
 
 ENV PATH="/app/.venv/bin:$PATH"
 
-CMD ["python", "-c", "from chrono24 import load_watches; print(load_watches().shape)"]
+CMD ["python", "-m", "chrono24"]

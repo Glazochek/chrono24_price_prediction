@@ -20,11 +20,19 @@ git commit -m "[Feature/fix/..] Name of feature/fix/.."
 ```
 chrono24_price_prediction/
 ├── .github/workflows/ci.yml     # CI: ruff (lint + format) + pytest on every push
-├── notebooks/                   # where the work happens (EDA, experiments, modelling)
-├── src/chrono24/                # small shared library the notebooks import
-│   └── data.py                  #   load_watches() — one loader for Kaggle / Colab / local
+├── notebooks/                   # where the exploration happens (EDA, experiments)
+├── src/chrono24/                # the pipeline as an importable package
+│   ├── data.py                  #   load_watches() — one loader for Kaggle / Colab / local
+│   ├── cleaning.py              #   parsing, deduplication, key-column filters
+│   ├── outliers.py              #   range rules, price clipping, IQR, rare categories
+│   ├── features.py              #   feature engineering → X, y
+│   ├── training.py              #   LightGBM training, metrics, save/load
+│   ├── plots.py                 #   evaluation figures
+│   └── __main__.py              #   python -m chrono24 → full pipeline
+├── models/                      # trained model + metrics (committed)
+├── reports/figures/             # evaluation plots (committed)
 ├── data/                        # git-ignored datasets (see data/README.md)
-├── tests/                       # pytest smoke tests
+├── tests/                       # pytest unit + smoke tests
 ├── Dockerfile                   # reproducible environment image
 ├── Makefile                     # one command per task
 ├── pyproject.toml               # dependencies + tooling (uv)
@@ -69,8 +77,28 @@ Kaggle credentials (`KAGGLE_USERNAME` / `KAGGLE_KEY`) go in `.env` — see `.env
 | `make format` | Auto-fix and format the code |
 | `make test`   | Run the test suite |
 | `make data`   | Download the dataset and print its shape |
+| `make train`  | Run the full pipeline and save model + metrics + plots |
 | `make docker` | Build the container image |
 | `make clean`  | Remove caches |
+
+## Training pipeline
+
+`make train` (or `uv run python -m chrono24`) runs the whole pipeline from the notebook,
+end to end: load → clean → remove outliers → engineer features → train LightGBM →
+evaluate. It writes:
+
+- `models/model.txt` — the trained model (LightGBM booster)
+- `models/metrics.json` — RMSE / MAE / R² in log space and dollars
+- `reports/figures/*.png` — loss curve, residuals, predicted-vs-actual, feature importance
+
+To load the committed model and predict:
+
+```python
+from chrono24 import load_model, predict_price
+
+model = load_model("models/model.txt")
+prices = predict_price(model, X)   # X built with chrono24.build_features
+```
 
 ## Docker
 
