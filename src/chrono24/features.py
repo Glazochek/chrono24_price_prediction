@@ -73,6 +73,8 @@ NAME_LEN_BINS = [-1, 20, 40, 60, 80, 100, np.inf]
 NAME_LEN_LABELS = ["0-20", "21-40", "41-60", "61-80", "81-100", "100+"]
 
 RARE_BRAND_THRESHOLD = 100
+MIN_MODEL_COUNT = 3
+MIN_PREFIX_COUNT = 5
 
 RAW_COLUMNS = [
     "name",
@@ -89,9 +91,62 @@ RAW_COLUMNS = [
     "size_mm",
     "log_price",
 ]
-DROP_COLUMNS = ["name", "model", "ref", "price", "color", "yop", "condition"]
-CATEGORY_COLUMNS = ["brand", "mvmt", "casem", "bracem", "sex"]
+DROP_COLUMNS = [
+    "name",
+    "model",
+    "ref",
+    "price",
+    "color",
+    "yop",
+    "condition",
+    "brand_model",
+    "brand_model_prefix",
+    "model_median_price",
+]
+CATEGORY_COLUMNS = ["brand", "mvmt", "casem", "bracem", "sex", "ref_prefix"]
 TARGET = "log_price"
+
+
+def _first_n_alnum(ref: str, n: int) -> str:
+    clean = re.sub(r"[^A-Z0-9]", "", ref)
+    return clean[:n] if clean else "Unknown"
+
+
+def _first_segments(ref: str, n: int) -> str:
+    parts = [p for p in re.split(r"[.\s/\-]+", ref) if p]
+    return ".".join(parts[:n]) if parts else "Unknown"
+
+
+# Each brand encodes its reference numbers differently, so the "family" prefix
+# that groups similar watches is a different length / format per brand.
+BRAND_REF_RULE = {
+    "Rolex": lambda r: _first_n_alnum(r, 6),
+    "Tudor": lambda r: _first_n_alnum(r, 4),
+    "Audemars Piguet": lambda r: _first_n_alnum(r, 5),
+    "Patek Philippe": lambda r: _first_n_alnum(r, 4),
+    "Vacheron Constantin": lambda r: _first_n_alnum(r, 5),
+    "Cartier": lambda r: _first_n_alnum(r, 4),
+    "Seiko": lambda r: _first_n_alnum(r, 4),
+    "IWC": lambda r: _first_n_alnum(r, 5),
+    "Jaeger-LeCoultre": lambda r: _first_n_alnum(r, 4),
+    "Longines": lambda r: _first_n_alnum(r, 4),
+    "Panerai": lambda r: _first_n_alnum(r, 6),
+    "Breitling": lambda r: _first_n_alnum(r, 4),
+    "TAG Heuer": lambda r: _first_n_alnum(r, 4),
+    "Omega": lambda r: _first_segments(r, 1),
+    "Hublot": lambda r: _first_segments(r, 1),
+    "A. Lange & Söhne": lambda r: _first_segments(r, 1),
+    "Zenith": lambda r: _first_segments(r, 2),
+    "Oris": lambda r: _first_segments(r, 3),
+}
+
+
+def extract_ref_key(ref, brand) -> str:
+    if not isinstance(ref, str) or not ref.strip():
+        return "Unknown"
+    ref = ref.strip().upper()
+    rule = BRAND_REF_RULE.get(brand, lambda r: _first_n_alnum(r, 4))
+    return rule(ref)
 
 
 def extract_color(name):
@@ -156,10 +211,36 @@ def add_color_features(df):
     return df
 
 
-def add_frequency_features(df, rare_brand_threshold=RARE_BRAND_THRESHOLD):
-    brand_counts = df["brand"].value_counts()
-    rare_brands = brand_counts[brand_counts < rare_brand_threshold].index
+def add_price_history_features(
+    df,
+    rare_brand_threshold=RARE_BRAND_THRESHOLD,
+    min_model_count=MIN_MODEL_COUNT,
+    min_prefix_count=MIN_PREFIX_COUNT,
+):
+    rare_brands = (
+        df["brand"].value_counts()[df["brand"].value_counts() < rare_brand_threshold].index
+    )
     df["brand"] = df["brand"].replace(rare_brands, "Other")
+
+    prefix = df.apply(lambda r: extract_ref_key(r["ref"], r["brand"]), axis=1)
+    prefix_counts = prefix.value_counts()
+    rare_prefixes = prefix_counts[prefix_counts < min_prefix_count].index
+    df["ref_prefix"] = prefix.where(~prefix.isin(rare_prefixes), "Other")
+
+    global_median = df["log_price"].median()
+
+    df["brand_model"] = df["brand"] + "_" + df["model"]
+    model_stats = df.groupby("brand_model")["log_price"].agg(["median", "count"])
+    reliable_models = model_stats[model_stats["count"] >= min_model_count]["median"]
+    df["model_median_price"] = df["brand_model"].map(reliable_models).fillna(global_median)
+
+    df["brand_model_prefix"] = df["brand_model"] + "_" + df["ref_prefix"]
+    prefix_stats = df.groupby("brand_model_prefix")["log_price"].agg(["median", "count"])
+    reliable_prefixes = prefix_stats[prefix_stats["count"] >= min_model_count]["median"]
+    df["model_prefix_median_price"] = (
+        df["brand_model_prefix"].map(reliable_prefixes).fillna(df["model_median_price"])
+    )
+
     return df
 
 
@@ -171,7 +252,7 @@ def build_features(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
     df = add_material_features(df)
     df = add_name_features(df)
     df = add_color_features(df)
-    df = add_frequency_features(df)
+    df = add_price_history_features(df)
 
     X = df.drop(columns=DROP_COLUMNS + [TARGET])
     y = df[TARGET]

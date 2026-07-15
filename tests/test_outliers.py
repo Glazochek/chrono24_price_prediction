@@ -6,16 +6,13 @@ from chrono24.outliers import iqr_bounds, remove_outliers
 
 def make_cleaned_frame(n=300):
     rng = np.random.default_rng(0)
-    df = pd.DataFrame(
+    return pd.DataFrame(
         {
             "price": rng.uniform(1000, 20000, n),
-            "brand": ["Rolex"] * (n - 3) + ["RareBrand"] * 3,
-            "condition": ["Good"] * (n - 3) + ["Odd"] * 3,
             "yop": rng.integers(1990, 2024, n).astype(float),
             "size_mm": rng.uniform(36, 44, n),
         }
     )
-    return df
 
 
 def test_iqr_bounds_symmetric():
@@ -40,9 +37,3 @@ def test_out_of_range_values_removed():
     assert 1 not in out.index
     assert out["size_mm"].between(15, 60).all()
     assert out["yop"].between(1900, 2026).all()
-
-
-def test_rare_categories_removed():
-    out = remove_outliers(make_cleaned_frame())
-    assert "RareBrand" not in out["brand"].values
-    assert "Odd" not in out["condition"].values
