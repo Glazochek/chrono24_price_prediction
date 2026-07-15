@@ -1,7 +1,21 @@
 {
-  "rmse_log": 0.3246310420780827,
-  "mae_log": 0.23601869959657432,
-  "r2": 0.9100539705712632,
-  "rmse_usd": 5626.780352835216,
-  "mae_usd": 2585.737710130736
+  "n_features": 10,
+  "features": [
+    "model_prefix_median_price",
+    "casem",
+    "brand",
+    "ref_prefix",
+    "condition_score",
+    "watch_age",
+    "mvmt",
+    "size_mm",
+    "bracem",
+    "precious_case"
+  ],
+  "rmse_log": 0.21697158904237807,
+  "mae_log": 0.14728208061795847,
+  "r2": 0.9627014071454236,
+  "rmse_usd": 7234.668894716973,
+  "mae_usd": 2949.2236659326404,
+  "mape_usd": 14.65566303360747
 }
