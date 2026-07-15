@@ -1,6 +1,6 @@
 [project]
 name = "chrono24-price-prediction"
-version = "0.2.0"
+version = "0.3.0"
 description = "Predict luxury watch prices from Chrono24 listings."
 readme = "README.md"
 requires-python = ">=3.12"
